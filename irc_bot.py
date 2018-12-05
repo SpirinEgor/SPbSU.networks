@@ -1,9 +1,13 @@
 import socket
-from sys import stderr
+import threading
+import time
 from os.path import exists, join
 from random import randint
 
 class IrcBot:
+
+    MAGIC_MESSAGE = 'do some magic'
+    EXIT_MESSAGE = 'bye bye'
 
     def __init__(self, server, port, channel, nickname, log_file):
         self.server_ = server
@@ -30,6 +34,7 @@ class IrcBot:
         return result
 
     def listen(self):
+        threads = []
         while True:
             recieve = self.get_message()
             if 'PING' in recieve:
@@ -44,8 +49,16 @@ class IrcBot:
                 if 'PRIVMSG' in recieve and 'VERSION' not in recieve:
                     author, message = self.parse_recieve_privmsg(recieve)
                     print('<{}>: {}'.format(author, message))
-                    if 'Harold: do some magic' == message:
-                        self.do_some_magic()
+                    if '{}: {}'.format(self.nickname_, self.MAGIC_MESSAGE) == message:
+                        thread = threading.Thread(target=self.do_some_magic)
+                        thread.start()
+                        threads.append(thread)
+                    if '{}: {}'.format(self.nickname_, self.EXIT_MESSAGE) == message:
+                        self.send_message(self.EXIT_MESSAGE)
+                        break
+        for thread in threads:
+            thread.join()
+
     
     def parse_recieve_privmsg(self, recieve):
         author = recieve.split('!')[0][1:]
@@ -59,3 +72,4 @@ class IrcBot:
         with open(join('memes', '{}.txt'.format(num)), 'r') as meme_in:
             for line in meme_in:
                 self.send_message(line)
+                time.sleep(0.5) 
