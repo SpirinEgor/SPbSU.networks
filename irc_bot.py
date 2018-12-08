@@ -1,12 +1,14 @@
 import socket
 import threading
 import time
+import urllib3
 from os.path import exists, join
 from random import randint
 
 class IrcBot:
 
     MAGIC_MESSAGE = 'do some magic'
+    MEME_MESSAGE = 'show meme'
     EXIT_MESSAGE = 'bye bye'
 
     def __init__(self, server, port, channel, nickname, log_file):
@@ -16,18 +18,24 @@ class IrcBot:
         self.nickname_ = nickname
         self.irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.log_file_ = log_file
+        self.http = urllib3.PoolManager()
         open(self.log_file_, 'w').close()
 
     def send_message(self, message, privmsg=True):
         if privmsg:
             message = 'PRIVMSG {} :{}\r\n'.format(self.channel_, message)
+            print('<{}>: {}'.format(self.nickname_, message))
         self.irc.send(message.encode('utf-8'))
+
 
     def connect(self):
         self.irc.connect((self.server_, self.port_))
         self.send_message('USER {} * * : !\n'.format(self.nickname_), False)
         self.send_message('NICK {}\n'.format(self.nickname_), False)
         self.send_message('JOIN {}\n'.format(self.channel_), False)
+
+        for msg in ['use this commands:', 'do some magic', 'show meme', 'bye bye']:
+            self.send_message(msg)
 
     def get_message(self):
         result = self.irc.recv(1024).decode('utf-8')
@@ -49,11 +57,16 @@ class IrcBot:
                 if 'PRIVMSG' in recieve and 'VERSION' not in recieve:
                     author, message = self.parse_recieve_privmsg(recieve)
                     print('<{}>: {}'.format(author, message))
-                    if '{}: {}'.format(self.nickname_, self.MAGIC_MESSAGE) == message:
-                        thread = threading.Thread(target=self.do_some_magic)
+                    if '{}: {}'.format(self.nickname_, self.MEME_MESSAGE) == message:
+                        thread = threading.Thread(target=self.do_some_meme)
                         thread.start()
                         threads.append(thread)
-                    if '{}: {}'.format(self.nickname_, self.EXIT_MESSAGE) == message:
+                    elif '{}: {}'.format(self.nickname_, self.MAGIC_MESSAGE) == message:
+                        r = self.http.request('GET', 'http://finewords.ru/sluchajnaya')
+                        quote = r.data.decode('utf-8').replace('<p>', '').replace('</p>', '').split('\n')
+                        for q in quote:
+                            self.send_message(q)
+                    elif '{}: {}'.format(self.nickname_, self.EXIT_MESSAGE) == message:
                         self.send_message(self.EXIT_MESSAGE)
                         break
         for thread in threads:
@@ -67,9 +80,10 @@ class IrcBot:
             message = message[:-2]
         return author, message
             
-    def do_some_magic(self):
-        num = randint(0, 10)
+    def do_some_meme(self):
+        num = randint(0, 12)
         with open(join('memes', '{}.txt'.format(num)), 'r') as meme_in:
             for line in meme_in:
                 self.send_message(line)
-                time.sleep(0.5) 
+                print('<{}>: {}'.format(self.nickname_, line))
+                time.sleep(0.5)
