@@ -3,8 +3,8 @@ from irc_bot import IrcBot
 options = {
     'server': 'chat.freenode.net',
     'port': 6667,
-    'channel': '#redpandas',
-    'nickname': 'Harold',
+    'channel': '#botik',
+    'nickname': 'Statham',
     'log_file': 'log.txt'
 }
 
